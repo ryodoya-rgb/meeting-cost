@@ -90,21 +90,21 @@
       <div class="field">
         <label for="people">参加人数</label>
         <div class="input-row">
-          <input id="people" type="number" inputmode="numeric" min="0" step="1" value="5">
+          <input id="people" type="text" inputmode="numeric" autocomplete="off" value="5">
           <span class="unit">人</span>
         </div>
       </div>
       <div class="field">
         <label for="minutes">会議の時間</label>
         <div class="input-row">
-          <input id="minutes" type="number" inputmode="numeric" min="0" step="5" value="60">
+          <input id="minutes" type="text" inputmode="numeric" autocomplete="off" value="60">
           <span class="unit">分</span>
         </div>
       </div>
       <div class="field">
         <label for="rate">1時間あたりの単価（1人あたり）</label>
         <div class="input-row">
-          <input id="rate" type="number" inputmode="numeric" min="0" step="100" value="3000">
+          <input id="rate" type="text" inputmode="numeric" autocomplete="off" value="3,000">
           <span class="unit">円/時</span>
         </div>
       </div>
@@ -126,18 +126,36 @@
     const total = document.getElementById("total");
     const detail = document.getElementById("detail");
     const yen = (n) => Math.round(n).toLocaleString("ja-JP") + "円";
-    const num = (el) => Math.max(0, Number(el.value) || 0);
+    // 全角数字も半角にそろえ、数字以外（カンマなど）を取り除く
+    const digits = (s) => s.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0)).replace(/\D/g, "");
+    const num = (el) => Number(digits(el.value)) || 0;
+
+    // 入力欄を3桁カンマ付きに整え、カーソルは同じ数字の後ろに戻す
+    function formatInput(el) {
+      const before = digits(el.value.slice(0, el.selectionStart)).length;
+      const d = digits(el.value);
+      el.value = d === "" ? "" : Number(d).toLocaleString("ja-JP");
+      let pos = 0;
+      for (let seen = 0; pos < el.value.length && seen < before; pos++) {
+        if (/\d/.test(el.value[pos])) seen++;
+      }
+      el.setSelectionRange(pos, pos);
+    }
 
     function update() {
       const p = num(people), m = num(minutes), r = num(rate);
       const sum = p * (m / 60) * r;
       total.textContent = yen(sum);
       detail.textContent = m > 0
-        ? `1分あたり ${yen(sum / m)}（${p}人 × ${m}分 × ${r.toLocaleString("ja-JP")}円/時）`
+        ? `1分あたり ${yen(sum / m)}（${p.toLocaleString("ja-JP")}人 × ${m.toLocaleString("ja-JP")}分 × ${r.toLocaleString("ja-JP")}円/時）`
         : "";
     }
 
-    [people, minutes, rate].forEach((el) => el.addEventListener("input", update));
+    [people, minutes, rate].forEach((el) => el.addEventListener("input", (e) => {
+      // 日本語入力の変換中は整形しない（確定後の input で整形される）
+      if (!e.isComposing) formatInput(el);
+      update();
+    }));
     update();
   </script>
 </body>
